@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>生成</title>
+	<style>
+		body {
+			padding: 15px;
+			margin: 0;
+			box-sizing: border-box;
+			height: 100vh;
+			width: 100vw;
+			overflow: hidden;
+		}
+		.main {
+			width: 100%;
+			height: 100%;
+			box-sizing: border-box;
+			display: flex;
+			overflow-y: auto;
+			display: flex;
+			flex-direction: column;
+		}
+		textarea {
+			width: 100%;
+			border: 1px solid #999;
+			border-radius: 5px;
+			resize: none;
+			padding: 10px;
+			box-sizing: border-box;
+		}
+		#input {
+			height: 50vh;
+		}
+		button {
+			color: #fff;
+			background-color: #3370ff;
+			border-color: #3370ff;
+			width: 280px;
+			margin: 15px auto;
+			border-radius: 4px;
+			height: 38px;
+			user-select: none;
+    	line-height: 1.5;
+			border: 1px solid #e6e8eb;
+			box-sizing: border-box;
+		}
+		button:hover {
+			background-color: #5c92ff;
+			border-color: #5c92ff;
+			color: #fff;
+		}
+		#output {
+			height: 200px;
+		}
+	</style>
+</head>
+
+<body>
+	<div class="main">
+		<textarea id="input" placeholder="起风了&#10;&#10;B2A1A5 B1 B2 B1 B2A1A5 B3 B5 B3&#10;这一路上走走停停&#10;&#10;B2A5A7 B1 B2 B1 B2A5A7 B3 B2 B1 A5&#10;顺着少年漂流的痕迹&#10;&#10;&#10;首行是歌曲名称&#10;A1-A7,B1-B7,C1代表十五个键，长按：A1~&#10;每句歌词需要用空一行隔开&#10;"></textarea>
+		<button id="transform">转换</button>
+		<textarea id="output" readonly placeholder="点击【转换】->【复制】&#10;在/sdcard/skyMusicPractice下新建【歌名.txt】&#10;粘贴复制的内容并保存"></textarea>
+		<button id="copy">复制</button>
+	</div>
+	<script>
+		// {"time":61984,"key":"2Key8"}
+		const inputDom = document.getElementById('input');
+		const outputDom = document.getElementById('output');
+		const keyMap = {
+			A1: '1Key0',
+			A2: '1Key1',
+			A3: '1Key2',
+			A4: '1Key3',
+			A5: '1Key4',
+			A6: '1Key5',
+			A7: '1Key6',
+			B1: '2Key7',
+			B2: '2Key8',
+			B3: '2Key9',
+			B4: '2Key10',
+			B5: '2Key11',
+			B6: '2Key12',
+			B7: '2Key13',
+			C1: '3Key14',
+		};
+		document.getElementById('transform').addEventListener('click', () => {
+			const obj = {
+				name: '',
+				custom: true,
+				author: '',
+				arrangedBy: '',
+				transcribedBy: '',
+				permission: '',
+				isComposed: true,
+				bpm: 288,
+				bitsPerPage: 16,
+				pitchLevel: 0,
+				lrc: [],
+				songNotes: []
+			}
+			const rows = inputDom.value.split('\n');
+			let time = -416;
+			rows.forEach((row, index) => {
+				const rowCurrent = row.trim();
+				const rowNext = (rows[index + 1] || '').trim();
+				if (rowCurrent) {
+					if (index === 0 && !rowNext) {
+						obj.name = rowCurrent;
+					} else if (rowNext) {
+						const beats = row.split(' ').filter(v => v);
+						obj.lrc.push({
+							text: rowNext,
+							time: [],
+							keys: beats
+						});
+						beats.forEach(beat => {
+							const b = beat.replace(/\s/g, '');
+							if (b.length === 2) {
+								if (keyMap[b]) {
+									time = time + 416;
+									obj.songNotes.push({
+										time,
+										key: keyMap[b],
+										keyName: b,
+										long: false
+									});
+									if (obj.lrc[obj.lrc.length - 1].time[0] === undefined) {
+										obj.lrc[obj.lrc.length - 1].time[0] = time;
+									} else {
+										obj.lrc[obj.lrc.length - 1].time[1] = time;
+									}
+								}
+							} else if (b.length === 3) {
+								const k = b.substring(0, 2);
+								if (keyMap[k]) {
+									time = time + 416;
+									obj.songNotes.push({
+										time,
+										key: keyMap[k],
+										keyName: b,
+										long: true
+									});
+									if (obj.lrc[obj.lrc.length - 1].time[0] === undefined) {
+										obj.lrc[obj.lrc.length - 1].time[0] = time;
+									} else {
+										obj.lrc[obj.lrc.length - 1].time[1] = time;
+									}
+								}
+							} else if (b.length > 3) {
+								time = time + 416;
+								const cs = b.split('');
+								cs.forEach((c, i) => {
+									if (!isNaN(parseInt(c)) && cs[i - 1] && (!cs[i + 1] || cs[i + 1] !== '~')) {
+										if (keyMap[cs[i - 1] + c]) {
+											obj.songNotes.push({
+												time,
+												key: keyMap[cs[i - 1] + c],
+												keyName: cs[i - 1] + c,
+												long: false
+											});
+											if (obj.lrc[obj.lrc.length - 1].time[0] === undefined) {
+												obj.lrc[obj.lrc.length - 1].time[0] = time;
+											} else {
+												obj.lrc[obj.lrc.length - 1].time[1] = time;
+											}
+										}	
+									} else if (c === '~' && cs[i - 1] && cs[i - 2]) {
+										if (keyMap[cs[i - 2] + cs[i - 1]]) {
+											obj.songNotes.push({
+												time,
+												key: keyMap[cs[i - 2] + cs[i - 1]],
+												keyName: cs[i - 1] + c + '~',
+												long: true
+											});
+											if (obj.lrc[obj.lrc.length - 1].time[0] === undefined) {
+												obj.lrc[obj.lrc.length - 1].time[0] = time;
+											} else {
+												obj.lrc[obj.lrc.length - 1].time[1] = time;
+											}
+										}
+									}
+								});
+							}
+						});
+						if (obj.lrc[obj.lrc.length - 1].time[1] === undefined) {
+							obj.lrc[obj.lrc.length - 1].time[1] = obj.lrc[obj.lrc.length - 1].time[0];
+						}
+					}
+				}
+			});
+			outputDom.value = JSON.stringify([obj]);
+		});
+		document.getElementById('copy').addEventListener('click', () => {
+			outputDom.select();
+			document.execCommand('copy');
+			alert('复制成功');
+		});
+	</script>
+</body>
+</html>
